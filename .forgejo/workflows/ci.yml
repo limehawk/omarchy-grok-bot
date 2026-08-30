@@ -7,12 +7,11 @@ on:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: docker
     steps:
       - uses: actions/checkout@v4
 
       - name: Validate plugin
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq jq
+          command -v jq >/dev/null || apt-get update -qq && apt-get install -y -qq jq
           bash scripts/validate.sh .

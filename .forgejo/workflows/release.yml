@@ -12,7 +12,7 @@ on:
 jobs:
   release:
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: docker
     steps:
       - uses: actions/checkout@v4
         with:
@@ -78,16 +78,20 @@ jobs:
             -d "$payload"
 
       - name: Create GitHub release
-        if: ${{ steps.skip.outputs.skip != 'true' && secrets.GH_TOKEN != '' }}
+        if: steps.skip.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           TAG: ${{ steps.tag.outputs.tag }}
           NOTES: ${{ steps.tag.outputs.notes }}
         run: |
           set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "GH_TOKEN unset; skipping GitHub release"
+            exit 0
+          fi
           body=$(printf '%s\n' "$NOTES")
           payload=$(jq -n --arg tag "$TAG" --arg body "$body" \
-            '{tag_name:$tag, name:$tag, body:$body, generate_release_notes:false}')
+            '{tag_name:$tag, name:$tag, body:$body}')
           curl -fsS -X POST \
             -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
