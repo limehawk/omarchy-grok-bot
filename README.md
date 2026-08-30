@@ -41,3 +41,5 @@ That is a named special workspace (`special:grokbot`), not the Super+S scratchpa
 Keep alive on (default): start at login, restart if you close the window. Off: dead stays dead. Quit turns keep alive off and kills the process.
 
 The blob is dim when Grok Bot is not running.
+
+Pushes to `main` tag a new patch release (`v0.1.0`, `v0.1.1`, …) on Forgejo and GitHub. `omarchy plugin add` still tracks `main`; pin a tag if you want a frozen checkout.

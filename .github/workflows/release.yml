@@ -1,0 +1,25 @@
+# GitHub only. Forgejo ignores this file once .forgejo/workflows exists.
+# Deploy-key push mirrors do not trigger Actions; GH_TOKEN on Forgejo
+# creates the GitHub Release instead. This workflow is the fallback if a
+# tag ever arrives from a user push.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true

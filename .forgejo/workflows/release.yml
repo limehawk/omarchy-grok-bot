@@ -1,0 +1,96 @@
+# Tag a patch release and publish it on every push to main.
+# Tags are not commits, so this does not loop. GitHub is a push mirror:
+# tags go there with the repo. A GitHub Release is also created when
+# GH_TOKEN is set (deploy-key mirrors do not trigger GitHub Actions).
+
+name: release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Skip if HEAD is already tagged
+        id: skip
+        run: |
+          set -euo pipefail
+          if git describe --exact-match --tags HEAD >/dev/null 2>&1; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "HEAD already tagged $(git describe --exact-match --tags HEAD)"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Tag next patch
+        if: steps.skip.outputs.skip != 'true'
+        id: tag
+        run: |
+          set -euo pipefail
+          git fetch --tags origin
+          if last=$(git describe --tags --abbrev=0 2>/dev/null); then
+            ver=${last#v}
+            major=${ver%%.*}
+            rest=${ver#*.}
+            minor=${rest%%.*}
+            patch=${rest#*.}
+            next="v${major}.${minor}.$((patch + 1))"
+            notes=$(git log --pretty=format:'- %s' "${last}..HEAD")
+          else
+            next="v0.1.0"
+            notes=$(git log --pretty=format:'- %s')
+          fi
+          {
+            echo "tag=$next"
+            echo "notes<<EOF"
+            echo "$notes"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          git config user.name "forgejo-actions"
+          git config user.email "actions@git.int.limehawk.io"
+          git tag -a "$next" -m "$next"
+          git push origin "refs/tags/$next"
+          echo "tagged $next"
+
+      - name: Create Forgejo release
+        if: steps.skip.outputs.skip != 'true'
+        env:
+          FORGE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          NOTES: ${{ steps.tag.outputs.notes }}
+        run: |
+          set -euo pipefail
+          body=$(printf '%s\n' "$NOTES")
+          payload=$(jq -n --arg tag "$TAG" --arg body "$body" \
+            '{tag_name:$tag, name:$tag, body:$body}')
+          curl -fsS -X POST \
+            -H "Authorization: token ${FORGE_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/releases" \
+            -d "$payload"
+
+      - name: Create GitHub release
+        if: ${{ steps.skip.outputs.skip != 'true' && secrets.GH_TOKEN != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          NOTES: ${{ steps.tag.outputs.notes }}
+        run: |
+          set -euo pipefail
+          body=$(printf '%s\n' "$NOTES")
+          payload=$(jq -n --arg tag "$TAG" --arg body "$body" \
+            '{tag_name:$tag, name:$tag, body:$body, generate_release_notes:false}')
+          curl -fsS -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/limehawk/omarchy-grok-bot/releases \
+            -d "$payload"
