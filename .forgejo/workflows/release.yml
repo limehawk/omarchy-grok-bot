@@ -1,6 +1,8 @@
 # Tag a patch release and publish it on every push to main.
 # Tags are not commits, so this does not loop. The GitHub push mirror
 # delivers the tag; .github/workflows/release.yml cuts the GitHub Release.
+#
+# RELEASE_TOKEN — watson PAT. Default GITHUB_TOKEN authors the release as Ghost.
 
 name: release
 
@@ -65,11 +67,16 @@ jobs:
       - name: Create Forgejo release
         if: steps.skip.outputs.skip != 'true'
         env:
-          FORGE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # watson PAT. Default GITHUB_TOKEN authors the release as Ghost.
+          FORGE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           TAG: ${{ steps.tag.outputs.tag }}
           NOTES: ${{ steps.tag.outputs.notes }}
         run: |
           set -euo pipefail
+          if [ -z "${FORGE_TOKEN:-}" ]; then
+            echo "RELEASE_TOKEN secret missing — releases would author as Ghost" >&2
+            exit 1
+          fi
           body=$(printf '%s\n' "$NOTES")
           payload=$(jq -n --arg tag "$TAG" --arg body "$body" \
             '{tag_name:$tag, name:$tag, body:$body}')
