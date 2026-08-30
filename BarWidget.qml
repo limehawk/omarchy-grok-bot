@@ -8,14 +8,19 @@ BarWidget {
   id: root
   moduleName: "limehawk.grok-bot"
 
+  property bool menuOpen: false
+
   readonly property var service: bar && bar.shell && bar.shell.serviceFor
     ? bar.shell.serviceFor("limehawk.grok-bot") : null
   readonly property bool running: service ? service.running : false
   readonly property bool hidden: service ? service.hidden : false
   readonly property string statusText: service ? service.statusText : "Grok Bot: stopped"
+  readonly property bool keepAlive: service ? service.keepAlive : true
 
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
+
+  function close() { root.menuOpen = false }
 
   function toggle() {
     if (root.service && typeof root.service.toggle === "function")
@@ -59,6 +64,57 @@ BarWidget {
     iconComponent: blobIcon
     tooltipText: root.statusText
     dimmed: !root.running
-    onPressed: root.toggle()
+    onPressed: function(buttonCode) {
+      if (buttonCode === Qt.RightButton) {
+        root.menuOpen = !root.menuOpen
+        return
+      }
+      root.menuOpen = false
+      root.toggle()
+    }
+  }
+
+  PopupCard {
+    id: menu
+    anchorItem: button
+    bar: root.bar
+    owner: root
+    open: root.menuOpen
+    contentWidth: menu.fittedContentWidth(Style.space(280))
+    contentHeight: menu.fittedContentHeight(menuColumn.implicitHeight)
+
+    Column {
+      id: menuColumn
+      width: parent.width
+      spacing: Style.space(8)
+
+      Toggle {
+        width: parent.width
+        label: "Keep alive"
+        description: "Restart Grok Bot if the window closes."
+        checked: root.keepAlive
+        foreground: root.bar ? root.bar.barForeground : Color.foreground
+        accent: Color.accent
+        fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
+        onClicked: {
+          if (!root.service) return
+          root.service.keepAlive = !root.service.keepAlive
+        }
+      }
+
+      Button {
+        width: parent.width
+        text: "Quit"
+        bordered: true
+        foreground: root.bar ? root.bar.barForeground : Color.foreground
+        accent: Color.accent
+        fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
+        onClicked: {
+          if (root.service && typeof root.service.quit === "function")
+            root.service.quit()
+          root.close()
+        }
+      }
+    }
   }
 }

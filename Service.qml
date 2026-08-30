@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Hyprland
 import Quickshell.Wayland
 
@@ -19,84 +20,48 @@ Item {
   property bool revealOnMap: false
   property bool ready: false
   property int startAttempts: 0
+  property alias keepAlive: persisted.keepAlive
 
-  function ipcClass(toplevel) {
-    var ipc = toplevel && toplevel.lastIpcObject ? toplevel.lastIpcObject : ({})
-    var klass = String(ipc["class"] || ipc.initialClass || "")
-    if (klass !== "") return klass
-    if (toplevel && toplevel.wayland && toplevel.wayland.appId)
-      return String(toplevel.wayland.appId)
-    return ""
+  PersistentProperties {
+    id: persisted
+    reloadableId: "limehawk.grok-bot"
+    property bool keepAlive: true
   }
 
-  function isGrok(toplevel) {
-    if (root.ipcClass(toplevel) === root.appClass) return true
-    return String(toplevel && toplevel.title || "") === "Grok Bot"
+  onKeepAliveChanged: {
+    if (!root.keepAlive) restartTimer.stop()
+    else if (root.ready) root.ensure(false)
   }
 
-  function collectToplevels() {
+  function grokClients(list) {
     var out = []
-    var seen = ({})
-    function add(t) {
-      if (!t) return
-      var addr = String(t.address || "")
-      var key = addr || String(t.title || "")
-      if (key && seen[key]) return
-      if (key) seen[key] = true
-      out.push(t)
-    }
-    var values = Hyprland.toplevels ? Hyprland.toplevels.values : []
-    for (var i = 0; i < values.length; i++) add(values[i])
-    var wss = Hyprland.workspaces ? Hyprland.workspaces.values : []
-    for (var w = 0; w < wss.length; w++) {
-      var tops = wss[w].toplevels ? wss[w].toplevels.values : []
-      for (var j = 0; j < tops.length; j++) add(tops[j])
+    if (!Array.isArray(list)) return out
+    for (var i = 0; i < list.length; i++) {
+      var c = list[i]
+      if (c && String(c["class"] || "") === root.appClass) out.push(c)
     }
     return out
   }
 
-  function grokWindows() {
-    var values = root.collectToplevels()
-    var out = []
-    for (var i = 0; i < values.length; i++) {
-      if (root.isGrok(values[i])) out.push(values[i])
-    }
-    return out
-  }
-
-  function waylandRunning() {
-    try {
-      var values = ToplevelManager.toplevels.values
-      for (var i = 0; i < values.length; i++) {
-        var t = values[i]
-        if (!t) continue
-        if (String(t.appId || "") === root.appClass) return true
-        if (String(t.title || "") === "Grok Bot") return true
-      }
-    } catch (e) {}
-    return false
-  }
-
-  function workspaceName(toplevel) {
-    var ws = toplevel && toplevel.workspace ? toplevel.workspace : null
+  function workspaceName(client) {
+    var ws = client && client.workspace ? client.workspace : null
     return ws ? String(ws.name || "") : ""
   }
 
-  function isSpecial(toplevel) {
-    return root.workspaceName(toplevel) === root.specialWorkspace
+  function isParked(client) {
+    return root.workspaceName(client) === root.specialWorkspace
   }
 
-  function allSpecial(wins) {
+  function allParked(wins) {
     if (!wins || wins.length === 0) return false
     for (var i = 0; i < wins.length; i++) {
-      if (!root.isSpecial(wins[i])) return false
+      if (!root.isParked(wins[i])) return false
     }
     return true
   }
 
-  function addressOf(toplevel) {
-    var ipc = toplevel && toplevel.lastIpcObject ? toplevel.lastIpcObject : ({})
-    var addr = String(ipc.address || (toplevel && toplevel.address) || "")
+  function addressOf(client) {
+    var addr = client ? String(client.address || "") : ""
     if (!addr) return ""
     if (addr.indexOf("0x") !== 0 && addr.indexOf("0X") !== 0)
       addr = "0x" + addr
@@ -122,19 +87,19 @@ Item {
   }
 
   function hide() {
-    var wins = root.windows.length ? root.windows : root.grokWindows()
+    var wins = root.windows
     for (var i = 0; i < wins.length; i++)
       root.dispatchMove(root.addressOf(wins[i]), root.specialWorkspace)
   }
 
   function show() {
-    var wins = root.windows.length ? root.windows : root.grokWindows()
+    var wins = root.windows
     if (wins.length === 0) return
     root.dispatchMove(root.addressOf(wins[0]), root.currentWorkspace())
   }
 
   function start(reveal) {
-    if (root.grokWindows().length > 0 || root.waylandRunning()) {
+    if (root.windows.length > 0) {
       if (reveal) root.show()
       return
     }
@@ -151,24 +116,42 @@ Item {
     root.sync()
   }
 
-  function ensure() {
-    if (root.grokWindows().length > 0 || root.waylandRunning() || root.launching) return
-    root.start(false)
+  function ensure(reveal) {
+    if (!root.keepAlive) return
+    if (root.windows.length > 0 || root.launching) return
+    root.start(reveal === true)
+  }
+
+  function quit() {
+    root.keepAlive = false
+    restartTimer.stop()
+    root.launching = false
+    var wins = root.windows
+    if (wins.length === 0) {
+      Quickshell.execDetached(["pkill", "-x", "grok-bot"])
+      root.sync()
+      return
+    }
+    for (var i = 0; i < wins.length; i++) {
+      var addr = root.addressOf(wins[i])
+      if (addr)
+        Hyprland.dispatch("hl.dsp.window.close({ window = \"address:" + addr + "\" })")
+    }
   }
 
   function toggle() {
-    var wins = root.grokWindows()
-    if (wins.length === 0) {
+    if (root.windows.length === 0) {
       root.start(true)
       return
     }
-    root.windows = wins
-    if (root.allSpecial(wins)) root.show()
+    if (root.allParked(root.windows)) root.show()
     else root.hide()
   }
 
-  function sync() {
-    var wins = root.grokWindows()
+  function applyClients(raw) {
+    var list = []
+    try { list = JSON.parse(String(raw || "")) } catch (e) { list = [] }
+    var wins = root.grokClients(list)
     root.windows = wins
     var hasWin = wins.length > 0
     if (hasWin) {
@@ -180,20 +163,34 @@ Item {
         root.show()
       }
     }
-    root.running = hasWin || root.launching || root.waylandRunning()
-    root.hidden = hasWin && root.allSpecial(wins)
+    root.running = hasWin || root.launching
+    root.hidden = hasWin && root.allParked(wins)
     root.statusText = !root.running
       ? "Grok Bot: stopped"
       : (root.hidden ? "Grok Bot: hidden" : "Grok Bot: visible")
-    if (root.ready && !hasWin && !root.waylandRunning() && !root.launching && !restartTimer.running)
+    if (root.ready && root.keepAlive && !hasWin && !root.launching && !restartTimer.running)
       restartTimer.restart()
+  }
+
+  function sync() {
+    if (!clientsProc.running) clientsProc.running = true
+  }
+
+  Process {
+    id: clientsProc
+    command: ["hyprctl", "-j", "clients"]
+    stdout: StdioCollector {
+      id: clientsOut
+      waitForEnd: true
+    }
+    onExited: root.applyClients(clientsOut.text)
   }
 
   Timer {
     id: restartTimer
-    interval: 800
+    interval: 400
     repeat: false
-    onTriggered: root.ensure()
+    onTriggered: root.ensure(true)
   }
 
   Timer {
@@ -206,8 +203,6 @@ Item {
     }
   }
 
-  // Hyprland.toplevels is empty until IPC connects. Wait before treating
-  // "no grok-bot window" as "not running" or we spawn a second instance.
   Timer {
     id: bootTimer
     interval: 750
@@ -216,7 +211,7 @@ Item {
     onTriggered: {
       root.ready = true
       root.sync()
-      root.ensure()
+      if (root.keepAlive) root.ensure(false)
     }
   }
 
@@ -226,10 +221,16 @@ Item {
   }
 
   Connections {
+    target: ToplevelManager.toplevels
+    function onValuesChanged() { root.sync() }
+  }
+
+  Connections {
     target: Hyprland
     function onRawEvent(event) {
       var n = String(event && event.name || "")
-      if (n.indexOf("window") !== -1) root.sync()
+      if (n.indexOf("window") !== -1 || n.indexOf("close") !== -1 || n.indexOf("destroy") !== -1)
+        root.sync()
     }
   }
 
