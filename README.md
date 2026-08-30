@@ -12,11 +12,11 @@ Requires Omarchy (Quattro / `omarchy-shell`) and `/usr/bin/grok-bot`.
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/<you>/omarchy-grok-bot.git
+omarchy plugin add https://github.com/limehawk/omarchy-grok-bot.git
 omarchy plugin enable limehawk.grok-bot
 ```
 
-Replace the URL with this repo’s clone URL. `omarchy plugin add` clones into `~/.config/omarchy/plugins/limehawk.grok-bot/` and leaves the plugin disabled until you enable it.
+`omarchy plugin add` clones into `~/.config/omarchy/plugins/limehawk.grok-bot/` and leaves the plugin disabled until you enable it.
 
 New Grok Bot windows need a Hyprland rule so they open parked instead of stealing the current workspace. In `~/.config/hypr/hyprland.lua`:
 
