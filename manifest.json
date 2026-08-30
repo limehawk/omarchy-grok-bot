@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "limehawk.grok-bot",
+  "name": "Grok Bot",
+  "version": "0.1.0",
+  "author": "Limehawk",
+  "license": "MIT",
+  "description": "Keep Grok Bot running for local execution. Click to show or hide the window.",
+  "kinds": [
+    "service",
+    "bar-widget"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Grok Bot",
+    "description": "Local execution status. Click to show or hide Grok Bot.",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
