@@ -8,8 +8,8 @@ Install:
 
 ```
 mkdir -p ~/.config/omarchy/plugins/limehawk.grok-bot
-cp -a BarWidget.qml Service.qml keep.sh manifest.json assets ~/.config/omarchy/plugins/limehawk.grok-bot/
+cp -a BarWidget.qml Service.qml manifest.json assets ~/.config/omarchy/plugins/limehawk.grok-bot/
 omarchy plugin enable limehawk.grok-bot
 ```
 
-Click the bar blob to show or hide the window. Closing the window still quits Electron; the service starts it again.
+Click the bar blob to show or hide the window. Closing the window still quits Electron; the service starts it again. New windows open on `special:grokbot` via a Hyprland window rule.
