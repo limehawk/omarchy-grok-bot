@@ -31,6 +31,8 @@ That is a named special workspace (`special:grokbot`), not the Super+S scratchpa
 
 ## Use
 
+![Keep alive and Quit menu under the bar blob](screenshots/menu.png)
+
 | Input | Action |
 | --- | --- |
 | Left-click | Show or hide the window |
