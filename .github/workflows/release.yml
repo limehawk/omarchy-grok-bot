@@ -1,7 +1,5 @@
 # GitHub only. Forgejo ignores this file once .forgejo/workflows exists.
-# Deploy-key push mirrors do not trigger Actions; GH_TOKEN on Forgejo
-# creates the GitHub Release instead. This workflow is the fallback if a
-# tag ever arrives from a user push.
+# The Forgejo push mirror delivers v* tags; this job cuts the GitHub Release.
 
 name: Release
 

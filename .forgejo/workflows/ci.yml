@@ -13,5 +13,5 @@ jobs:
 
       - name: Validate plugin
         run: |
-          command -v jq >/dev/null || apt-get update -qq && apt-get install -y -qq jq
+          command -v jq >/dev/null || (apt-get update -qq && apt-get install -y -qq jq)
           bash scripts/validate.sh .
