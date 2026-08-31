@@ -31,14 +31,14 @@ That is a named special workspace (`special:grokbot`), not the Super+S scratchpa
 
 ## Use
 
-![Keep alive and Quit menu under the bar blob](screenshots/menu.png)
+![Keep alive, Relaunch, and Quit menu under the bar blob](screenshots/menu.png)
 
 | Input | Action |
 | --- | --- |
 | Left-click | Show or hide the window |
-| Right-click | Keep alive (toggle) and Quit |
+| Right-click | Keep alive, Relaunch, and Quit |
 
-Keep alive on (default): start at login, restart if you close the window. Off: dead stays dead. Quit turns keep alive off and kills the process.
+Keep alive on (default): start at login, restart if you close the window. Off: dead stays dead. Relaunch kills the process and starts it again without changing keep alive. Quit turns keep alive off and kills the process.
 
 The blob is dim when Grok Bot is not running.
 

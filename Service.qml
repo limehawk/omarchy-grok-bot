@@ -17,6 +17,8 @@ Item {
   property bool hidden: false
   property string statusText: "Grok Bot: stopped"
   property bool launching: false
+  property bool relaunching: false
+  property int relaunchWaits: 0
   property bool revealOnMap: false
   property bool ready: false
   property int startAttempts: 0
@@ -122,14 +124,10 @@ Item {
     root.start(reveal === true)
   }
 
-  function quit() {
-    root.keepAlive = false
-    restartTimer.stop()
-    root.launching = false
+  function closeWindows() {
     var wins = root.windows
     if (wins.length === 0) {
       Quickshell.execDetached(["pkill", "-x", "grok-bot"])
-      root.sync()
       return
     }
     for (var i = 0; i < wins.length; i++) {
@@ -137,6 +135,28 @@ Item {
       if (addr)
         Hyprland.dispatch("hl.dsp.window.close({ window = \"address:" + addr + "\" })")
     }
+  }
+
+  function quit() {
+    root.keepAlive = false
+    root.relaunching = false
+    restartTimer.stop()
+    relaunchTimer.stop()
+    root.launching = false
+    root.closeWindows()
+    if (root.windows.length === 0) root.sync()
+  }
+
+  function relaunch() {
+    root.startAttempts = 0
+    root.relaunchWaits = 0
+    root.revealOnMap = true
+    root.relaunching = true
+    root.launching = false
+    restartTimer.stop()
+    launchWatchdog.stop()
+    root.closeWindows()
+    relaunchTimer.restart()
   }
 
   function toggle() {
@@ -158,16 +178,21 @@ Item {
       root.startAttempts = 0
       root.launching = false
       launchWatchdog.stop()
+      if (root.relaunching && !relaunchTimer.running) {
+        root.relaunching = false
+        relaunchTimer.stop()
+      }
       if (root.revealOnMap) {
         root.revealOnMap = false
         root.show()
       }
     }
-    root.running = hasWin || root.launching
+    root.running = hasWin || root.launching || root.relaunching
     root.hidden = hasWin && root.allParked(wins)
     root.statusText = !root.running
       ? "Grok Bot: stopped"
       : (root.hidden ? "Grok Bot: hidden" : "Grok Bot: visible")
+    if (root.relaunching) return
     if (root.ready && root.keepAlive && !hasWin && !root.launching && !restartTimer.running)
       restartTimer.restart()
   }
@@ -191,6 +216,27 @@ Item {
     interval: 400
     repeat: false
     onTriggered: root.ensure(true)
+  }
+
+  Timer {
+    id: relaunchTimer
+    interval: 600
+    repeat: false
+    onTriggered: {
+      if (!root.relaunching) return
+      if (root.windows.length > 0) {
+        if (root.relaunchWaits > 8) {
+          root.relaunching = false
+          return
+        }
+        root.relaunchWaits += 1
+        Quickshell.execDetached(["pkill", "-x", "grok-bot"])
+        relaunchTimer.restart()
+        return
+      }
+      if (!root.launching)
+        root.start(true)
+    }
   }
 
   Timer {

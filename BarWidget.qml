@@ -102,17 +102,36 @@ BarWidget {
         }
       }
 
-      Button {
+      Row {
         width: parent.width
-        text: "Quit"
-        bordered: true
-        foreground: root.bar ? root.bar.barForeground : Color.foreground
-        accent: Color.accent
-        fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
-        onClicked: {
-          if (root.service && typeof root.service.quit === "function")
-            root.service.quit()
-          root.close()
+        spacing: Style.space(8)
+
+        Button {
+          width: (parent.width - parent.spacing) / 2
+          text: "Relaunch"
+          bordered: true
+          foreground: root.bar ? root.bar.barForeground : Color.foreground
+          accent: Color.accent
+          fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
+          onClicked: {
+            if (root.service && typeof root.service.relaunch === "function")
+              root.service.relaunch()
+            root.close()
+          }
+        }
+
+        Button {
+          width: (parent.width - parent.spacing) / 2
+          text: "Quit"
+          bordered: true
+          foreground: root.bar ? root.bar.barForeground : Color.foreground
+          accent: Color.accent
+          fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
+          onClicked: {
+            if (root.service && typeof root.service.quit === "function")
+              root.service.quit()
+            root.close()
+          }
         }
       }
     }
