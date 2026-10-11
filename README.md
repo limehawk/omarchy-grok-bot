@@ -21,7 +21,7 @@ omarchy plugin enable limehawk.grok-bot
 New Grok Bot windows need a Hyprland rule so they open parked instead of stealing the current workspace. In `~/.config/hypr/hyprland.lua`:
 
 ```lua
-o.window("^grok-bot$", {
+o.window({ class = "^grok-bot$", initial_title = "^Grok Bot$" }, {
   workspace = "special:grokbot silent",
   no_initial_focus = true,
 })

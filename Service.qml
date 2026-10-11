@@ -9,10 +9,12 @@ Item {
   property var shell: null
 
   readonly property string appClass: "grok-bot"
+  readonly property string mainTitle: "Grok Bot"
   readonly property string specialWorkspace: "special:grokbot"
   readonly property string keepBin: "/usr/bin/grok-bot"
 
   property var windows: []
+  property var allWindows: []
   property bool running: false
   property bool hidden: false
   property string statusText: "Grok Bot: stopped"
@@ -35,7 +37,7 @@ Item {
     else if (root.ready) root.ensure(false)
   }
 
-  function grokClients(list) {
+  function classClients(list) {
     var out = []
     if (!Array.isArray(list)) return out
     for (var i = 0; i < list.length; i++) {
@@ -43,6 +45,14 @@ Item {
       if (c && String(c["class"] || "") === root.appClass) out.push(c)
     }
     return out
+  }
+
+  // Dialogs and the desktop-mount panel share the class. Only the main
+  // window (opens titled "Grok Bot") hides and shows; fall back to every
+  // grok-bot window if a release renames it.
+  function mainClients(all) {
+    var main = all.filter(function (c) { return String(c.initialTitle || "") === root.mainTitle })
+    return main.length > 0 ? main : all
   }
 
   function workspaceName(client) {
@@ -125,7 +135,7 @@ Item {
   }
 
   function closeWindows() {
-    var wins = root.windows
+    var wins = root.allWindows
     if (wins.length === 0) {
       Quickshell.execDetached(["pkill", "-x", "grok-bot"])
       return
@@ -171,7 +181,8 @@ Item {
   function applyClients(raw) {
     var list = []
     try { list = JSON.parse(String(raw || "")) } catch (e) { list = [] }
-    var wins = root.grokClients(list)
+    root.allWindows = root.classClients(list)
+    var wins = root.mainClients(root.allWindows)
     root.windows = wins
     var hasWin = wins.length > 0
     if (hasWin) {
